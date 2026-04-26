@@ -23,6 +23,57 @@ def api_users():
     db.close()
     return jsonify(users)
 
+# ── Full users API (for register page table) ───────────────────
+@app.route("/api/users/full")
+def api_users_full():
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT user_id, name, email, account_status, created_at FROM users ORDER BY user_id")
+    users = cursor.fetchall()
+    cursor.close()
+    db.close()
+    # Convert datetime to string for JSON
+    for u in users:
+        if u['created_at']:
+            u['created_at'] = str(u['created_at'])
+    return jsonify(users)
+
+# ── Register page ──────────────────────────────────────────────
+@app.route("/register")
+def register():
+    return render_template("register.html", result=None, error=None)
+
+@app.route("/register", methods=["POST"])
+def register_post():
+    name  = request.form["name"].strip()
+    email = request.form["email"].strip()
+    result = None
+    error  = None
+
+    if not name or not email:
+        error = "Name and email are required."
+    else:
+        try:
+            db = get_db()
+            cursor = db.cursor(dictionary=True)
+            cursor.execute("SELECT user_id FROM users WHERE email = %s", (email,))
+            existing = cursor.fetchone()
+            if existing:
+                error = f"Email already registered. Your User ID is {existing['user_id']}."
+            else:
+                cursor.execute(
+                    "INSERT INTO users (name, email) VALUES (%s, %s)", (name, email)
+                )
+                db.commit()
+                new_id = cursor.lastrowid
+                result = {"user_id": new_id, "name": name, "email": email}
+            cursor.close()
+            db.close()
+        except mysql.connector.Error as e:
+            error = str(e.msg)
+
+    return render_template("register.html", result=result, error=error)
+
 # ── Home page ──────────────────────────────────────────────────
 @app.route("/")
 def index():

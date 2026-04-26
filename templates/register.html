@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinGuard — Register</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="bg-grid"></div>
+
+<nav class="navbar">
+    <div class="nav-inner">
+        <div class="nav-brand">
+            <div class="brand-icon">FG</div>
+            <span class="brand-name">FinGuard</span>
+        </div>
+        <div class="nav-links">
+            <a href="/" class="nav-link">Submit Transaction</a>
+            <a href="/results" class="nav-link">Dashboard &rarr;</a>
+        </div>
+    </div>
+</nav>
+
+<main class="main-wrap">
+
+    <div class="hero">
+        <p class="hero-tag">Get started</p>
+        <h1 class="hero-title">Create your<br><span class="accent">Account</span></h1>
+        <p class="hero-sub">Register to receive a unique User ID for making transactions.</p>
+    </div>
+
+    <div class="register-layout">
+
+        <!-- Registration form -->
+        <div class="form-card">
+            <form action="/register" method="POST" id="reg-form">
+
+                <div class="field" style="margin-bottom: 1.25rem;">
+                    <label class="field-label">Full Name</label>
+                    <input type="text" name="name" class="field-input"
+                           placeholder="e.g. Arnav Singh" required>
+                    <span class="field-hint">Your full name as it should appear on the platform</span>
+                </div>
+
+                <div class="field" style="margin-bottom: 1.5rem;">
+                    <label class="field-label">Email Address</label>
+                    <input type="email" name="email" class="field-input"
+                           placeholder="e.g. arnav@example.com" required>
+                    <span class="field-hint">Must be unique — used to identify your account</span>
+                </div>
+
+                <button type="submit" class="submit-btn" id="reg-btn">
+                    <span class="btn-text">Register</span>
+                    <span class="btn-arrow">&rarr;</span>
+                </button>
+            </form>
+        </div>
+
+        <!-- Result / Error -->
+        <div class="register-right">
+
+            {% if result %}
+            <div class="result-wrap result-clean" style="margin-bottom: 0;">
+                <div class="result-header">
+                    <div class="result-icon">&#10003;</div>
+                    <div>
+                        <p class="result-label">Registration Successful</p>
+                        <h2 class="result-title">Welcome, {{ result.name }}!</h2>
+                    </div>
+                </div>
+                <div class="result-reasons">
+                    <p class="reasons-label">Your details</p>
+                    <div class="user-id-box">
+                        <div class="uid-row">
+                            <span class="uid-label">User ID</span>
+                            <span class="uid-value">{{ result.user_id }}</span>
+                        </div>
+                        <div class="uid-row">
+                            <span class="uid-label">Name</span>
+                            <span class="uid-value-plain">{{ result.name }}</span>
+                        </div>
+                        <div class="uid-row">
+                            <span class="uid-label">Email</span>
+                            <span class="uid-value-plain">{{ result.email }}</span>
+                        </div>
+                    </div>
+                    <p class="uid-note">
+                        Save your User ID — you will need it to submit transactions.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if error %}
+            <div class="result-wrap result-frozen" style="margin-bottom: 0;">
+                <div class="result-header">
+                    <div class="result-icon">&#9888;</div>
+                    <div>
+                        <p class="result-label">Registration Failed</p>
+                        <h2 class="result-title">{{ error }}</h2>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if not result and not error %}
+            <!-- Placeholder info card -->
+            <div class="info-card">
+                <h3 class="info-title">How it works</h3>
+                <div class="info-steps">
+                    <div class="info-step">
+                        <span class="step-num">01</span>
+                        <div>
+                            <p class="step-title">Register here</p>
+                            <p class="step-desc">Enter your name and email. The system assigns you a unique User ID automatically.</p>
+                        </div>
+                    </div>
+                    <div class="info-step">
+                        <span class="step-num">02</span>
+                        <div>
+                            <p class="step-title">Note your User ID</p>
+                            <p class="step-desc">Your ID is shown after registration. Keep it safe — you'll need it to send or receive money.</p>
+                        </div>
+                    </div>
+                    <div class="info-step">
+                        <span class="step-num">03</span>
+                        <div>
+                            <p class="step-title">Submit transactions</p>
+                            <p class="step-desc">Go to the home page, enter your ID as the sender, and FinGuard will monitor every transaction in real time.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+    <!-- Existing users table -->
+    <div class="users-section" style="margin-top: 3rem;">
+        <h3 class="section-title">Registered Users</h3>
+        <p class="section-sub">All users currently on the platform</p>
+        <div class="table-wrap">
+            <table class="data-table" id="users-table">
+                <thead>
+                    <tr>
+                        <th>User ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Joined</th>
+                    </tr>
+                </thead>
+                <tbody id="users-tbody">
+                    <tr><td colspan="5" class="empty-row">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<script>
+document.getElementById('reg-form').addEventListener('submit', function() {
+    const btn = document.getElementById('reg-btn');
+    btn.classList.add('loading');
+    btn.querySelector('.btn-text').textContent = 'Registering...';
+});
+
+fetch('/api/users/full')
+    .then(r => r.json())
+    .then(users => {
+        const tbody = document.getElementById('users-tbody');
+        if (!users.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-row">No users yet.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = users.map(u => `
+            <tr>
+                <td class="mono" style="color:var(--accent)">${u.user_id}</td>
+                <td>${u.name}</td>
+                <td class="dim">${u.email}</td>
+                <td><span class="badge badge-${u.account_status === 'active' ? 'clean' : 'frozen'}">${u.account_status}</span></td>
+                <td class="dim small">${u.created_at}</td>
+            </tr>
+        `).join('');
+    });
+</script>
+</body>
+</html>

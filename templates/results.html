@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinGuard — Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+
+<nav class="navbar">
+    <div class="nav-inner">
+        <div class="nav-brand">
+            <div class="brand-icon">FG</div>
+            <span class="brand-name">FinGuard</span>
+        </div>
+        <a href="/" class="nav-link">&larr; New Transaction</a>
+    </div>
+</nav>
+
+<main class="main-wrap">
+
+    <div class="hero">
+        <p class="hero-tag">Live overview</p>
+        <h1 class="hero-title">Transaction<br><span class="accent">Dashboard</span></h1>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="stats-row">
+        <div class="stat-card stat-total">
+            <p class="stat-label">Total</p>
+            <p class="stat-num">{{ (status_counts.clean + status_counts.flagged + status_counts.frozen) }}</p>
+        </div>
+        <div class="stat-card stat-clean">
+            <p class="stat-label">Clean</p>
+            <p class="stat-num">{{ status_counts.clean }}</p>
+        </div>
+        <div class="stat-card stat-flagged">
+            <p class="stat-label">Flagged</p>
+            <p class="stat-num">{{ status_counts.flagged }}</p>
+        </div>
+        <div class="stat-card stat-frozen">
+            <p class="stat-label">Frozen</p>
+            <p class="stat-num">{{ status_counts.frozen }}</p>
+        </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="charts-row">
+        <div class="chart-card">
+            <h3 class="chart-title">Status breakdown</h3>
+            <div class="chart-wrap">
+                <canvas id="donutChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <h3 class="chart-title">Transactions (last 7 days)</h3>
+            <div class="chart-wrap">
+                <canvas id="lineChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <h3 class="chart-title">Top locations</h3>
+            <div class="chart-wrap">
+                <canvas id="barChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction history -->
+    <div class="section-block">
+        <h3 class="section-title">Transaction History</h3>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Sender</th>
+                        <th>Receiver</th>
+                        <th>Amount</th>
+                        <th>Location</th>
+                        <th>Score</th>
+                        <th>Status</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in transactions %}
+                    <tr>
+                        <td class="dim">{{ t.transaction_id }}</td>
+                        <td>
+                            {% if t.sender %}{{ t.sender }}
+                            {% else %}<span class="dim">ID {{ t.sender_id }}</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if t.receiver %}{{ t.receiver }}
+                            {% else %}<span class="dim">ID {{ t.receiver_id }}</span>{% endif %}
+                        </td>
+                        <td class="mono">₹{{ "{:,.2f}".format(t.amount) }}</td>
+                        <td class="dim">{{ t.location or '—' }}</td>
+                        <td>
+                            <div class="score-bar-wrap">
+                                <div class="score-fill status-{{ t.status }}-fill"
+                                     style="width:{{ t.fraud_score }}%"></div>
+                                <span class="score-val">{{ t.fraud_score }}</span>
+                            </div>
+                        </td>
+                        <td><span class="badge badge-{{ t.status }}">{{ t.status }}</span></td>
+                        <td class="dim small">{{ t.transaction_time }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not transactions %}
+                    <tr><td colspan="8" class="empty-row">No transactions yet.</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Alerts -->
+    <div class="section-block">
+        <h3 class="section-title">Alerts</h3>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr><th>Alert #</th><th>Transaction #</th><th>Reason</th><th>Time</th></tr>
+                </thead>
+                <tbody>
+                    {% for a in alerts %}
+                    <tr>
+                        <td class="dim">{{ a.alert_id }}</td>
+                        <td>{{ a.transaction_id }}</td>
+                        <td class="dim small">{{ a.reason }}</td>
+                        <td class="dim small">{{ a.created_at }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not alerts %}
+                    <tr><td colspan="4" class="empty-row">No alerts raised yet.</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<script>
+const clean   = {{ status_counts.clean }};
+const flagged = {{ status_counts.flagged }};
+const frozen  = {{ status_counts.frozen }};
+const dailyLabels = {{ daily_labels | tojson }};
+const dailyCounts = {{ daily_counts | tojson }};
+const locLabels   = {{ loc_labels   | tojson }};
+const locCounts   = {{ loc_counts   | tojson }};
+
+Chart.defaults.color = '#8b9cb3';
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+
+// Donut chart
+new Chart(document.getElementById('donutChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Clean', 'Flagged', 'Frozen'],
+        datasets: [{
+            data: [clean, flagged, frozen],
+            backgroundColor: ['#00c896', '#f5a623', '#e8445a'],
+            borderWidth: 0,
+            hoverOffset: 8
+        }]
+    },
+    options: {
+        cutout: '68%',
+        plugins: {
+            legend: { position: 'bottom', labels: { padding: 20, boxWidth: 12 } }
+        }
+    }
+});
+
+// Line chart
+new Chart(document.getElementById('lineChart'), {
+    type: 'line',
+    data: {
+        labels: dailyLabels.length ? dailyLabels : ['No data'],
+        datasets: [{
+            label: 'Transactions',
+            data: dailyCounts.length ? dailyCounts : [0],
+            borderColor: '#4f8ef7',
+            backgroundColor: 'rgba(79,142,247,0.1)',
+            borderWidth: 2,
+            pointBackgroundColor: '#4f8ef7',
+            pointRadius: 4,
+            fill: true,
+            tension: 0.4
+        }]
+    },
+    options: {
+        scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.04)' } },
+            y: { grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true, ticks: { stepSize: 1 } }
+        },
+        plugins: { legend: { display: false } }
+    }
+});
+
+// Bar chart — locations
+new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: {
+        labels: locLabels.length ? locLabels : ['No data'],
+        datasets: [{
+            label: 'Transactions',
+            data: locCounts.length ? locCounts : [0],
+            backgroundColor: ['#4f8ef7','#00c896','#f5a623','#e8445a','#a78bfa','#34d399'],
+            borderRadius: 6,
+            borderWidth: 0
+        }]
+    },
+    options: {
+        scales: {
+            x: { grid: { display: false } },
+            y: { grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true, ticks: { stepSize: 1 } }
+        },
+        plugins: { legend: { display: false } }
+    }
+});
+</script>
+</body>
+</html>

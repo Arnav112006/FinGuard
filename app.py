@@ -180,5 +180,29 @@ def results():
                            loc_labels=loc_labels,
                            loc_counts=loc_counts)
 
+# ── User risk summary (uses cursor procedure) ──────────────────
+@app.route("/user/<int:user_id>/risk")
+def user_risk(user_id):
+    try:
+        db = get_db()
+        cursor = db.cursor(dictionary=True)
+        cursor.callproc("sp_user_risk_summary", [user_id])
+        summary = None
+        for res in cursor.stored_results():
+            summary = res.fetchone()
+
+        # Also fetch user name
+        cursor.execute("SELECT name, account_status FROM users WHERE user_id = %s", (user_id,))
+        user = cursor.fetchone()
+        cursor.close()
+        db.close()
+
+        if not user:
+            return render_template("risk.html", error=f"User ID {user_id} not found.", summary=None, user_id=user_id)
+
+        return render_template("risk.html", summary=summary, user=user, user_id=user_id, error=None)
+    except mysql.connector.Error as e:
+        return render_template("risk.html", error=str(e.msg), summary=None, user_id=user_id)
+
 if __name__ == "__main__":
     app.run(debug=True)

@@ -84,14 +84,8 @@ BEGIN
         SET v_alert_reason = CONCAT(v_alert_reason, 'Location change (', v_last_location, ' -> ', p_location, '). ');
     END IF;
 
-    -- Determine final status
-    IF v_score >= 70 THEN
-        SET v_status = 'frozen';
-    ELSEIF v_score >= 40 THEN
-        SET v_status = 'flagged';
-    ELSE
-        SET v_status = 'clean';
-    END IF;
+    -- Determine final status using fn_get_risk_label function
+    SET v_status = fn_get_risk_label(v_score);
 
     -- Update transaction with score and status
     UPDATE transactions

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinGuard — User Risk Summary</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="bg-grid"></div>
+
+<nav class="navbar">
+    <div class="nav-inner">
+        <div class="nav-brand">
+            <div class="brand-icon">FG</div>
+            <span class="brand-name">FinGuard</span>
+        </div>
+        <div class="nav-links">
+            <a href="/register" class="nav-link">Register</a>
+            <a href="/" class="nav-link">Submit Transaction</a>
+            <a href="/results" class="nav-link">Dashboard &rarr;</a>
+        </div>
+    </div>
+</nav>
+
+<main class="main-wrap">
+
+    <div class="hero">
+        <p class="hero-tag">Cursor-based analysis</p>
+        <h1 class="hero-title">User Risk<br><span class="accent">Summary</span></h1>
+        <p class="hero-sub">Loops through all transactions for a user using a MySQL cursor and builds a complete risk profile.</p>
+    </div>
+
+    <!-- Lookup form -->
+    <div class="form-card" style="max-width: 480px; margin-bottom: 2rem;">
+        <form action="" method="GET" id="risk-form">
+            <div class="field" style="margin-bottom: 1.25rem;">
+                <label class="field-label">Enter User ID</label>
+                <input type="number" name="uid" class="field-input"
+                       placeholder="e.g. 1" min="1"
+                       value="{{ user_id if user_id else '' }}" required>
+                <span class="field-hint">The system will run sp_user_risk_summary for this user</span>
+            </div>
+            <button type="submit" class="submit-btn">
+                <span class="btn-text">Get Risk Summary</span>
+                <span class="btn-arrow">&rarr;</span>
+            </button>
+        </form>
+    </div>
+
+    {% if error %}
+    <div class="result-wrap result-frozen" style="max-width: 480px;">
+        <div class="result-header">
+            <div class="result-icon">&#9888;</div>
+            <div>
+                <p class="result-label">Error</p>
+                <h2 class="result-title">{{ error }}</h2>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if summary %}
+    <div class="risk-summary-wrap">
+
+        <!-- User header -->
+        <div class="risk-user-header">
+            <div class="risk-avatar">{{ user.name[0] }}</div>
+            <div>
+                <h2 class="risk-name">{{ user.name }}</h2>
+                <span class="badge badge-{{ 'clean' if user.account_status == 'active' else 'frozen' }}">
+                    {{ user.account_status }}
+                </span>
+            </div>
+            <div class="risk-overall result-{{ summary.overall_risk }}" style="margin-left: auto; padding: 10px 20px; border-radius: 10px;">
+                <p class="result-label">Overall Risk</p>
+                <p class="result-title" style="font-size: 1.2rem;">{{ summary.overall_risk | upper }}</p>
+            </div>
+        </div>
+
+        <!-- Stats grid -->
+        <div class="stats-row" style="margin-top: 1.5rem;">
+            <div class="stat-card stat-total">
+                <p class="stat-label">Total Transactions</p>
+                <p class="stat-num">{{ summary.total_transactions }}</p>
+            </div>
+            <div class="stat-card stat-clean">
+                <p class="stat-label">Clean</p>
+                <p class="stat-num">{{ summary.clean_count }}</p>
+            </div>
+            <div class="stat-card stat-flagged">
+                <p class="stat-label">Flagged</p>
+                <p class="stat-num">{{ summary.flagged_count }}</p>
+            </div>
+            <div class="stat-card stat-frozen">
+                <p class="stat-label">Frozen</p>
+                <p class="stat-num">{{ summary.frozen_count }}</p>
+            </div>
+        </div>
+
+        <!-- Avg score bar -->
+        <div class="form-card" style="margin-top: 1.5rem;">
+            <p class="field-label" style="margin-bottom: 12px;">Average Fraud Score</p>
+            <div class="score-bar-wrap" style="width: 100%; height: 28px;">
+                <div class="score-fill status-{{ summary.overall_risk }}-fill"
+                     style="width: {{ summary.avg_fraud_score }}%"></div>
+                <span class="score-val" style="font-size: 14px;">{{ summary.avg_fraud_score }} / 100</span>
+            </div>
+            <p class="field-hint" style="margin-top: 8px;">
+                Calculated by the cursor looping through all {{ summary.total_transactions }} transactions
+            </p>
+        </div>
+
+        <!-- How the cursor works -->
+        <div class="info-card" style="margin-top: 1.5rem;">
+            <h3 class="info-title">How this works (cursor logic)</h3>
+            <div class="info-steps">
+                <div class="info-step">
+                    <span class="step-num">01</span>
+                    <div>
+                        <p class="step-title">Cursor declared</p>
+                        <p class="step-desc">A cursor is opened on all transactions where sender_id = {{ user_id }}, ordered by time.</p>
+                    </div>
+                </div>
+                <div class="info-step">
+                    <span class="step-num">02</span>
+                    <div>
+                        <p class="step-title">Row by row loop</p>
+                        <p class="step-desc">Each transaction row is fetched one at a time. Counters for clean, flagged, and frozen are incremented.</p>
+                    </div>
+                </div>
+                <div class="info-step">
+                    <span class="step-num">03</span>
+                    <div>
+                        <p class="step-title">Function called</p>
+                        <p class="step-desc">After the loop, fn_get_risk_label() is called with the average score to determine the overall risk label.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    {% endif %}
+
+</main>
+
+<script>
+// Redirect form to /user/{id}/risk
+document.getElementById('risk-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const uid = this.querySelector('input[name="uid"]').value;
+    if (uid) window.location.href = `/user/${uid}/risk`;
+});
+</script>
+</body>
+</html>
